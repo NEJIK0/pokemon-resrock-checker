@@ -38,13 +38,13 @@ from bs4 import BeautifulSoup
 # KONFIGURATION – hier musst du deine eigenen Werte eintragen
 # ============================================================
 
-PRODUCT_URL = "https://www.smith-toys.ch/dein-produkt-link"  # <-- anpassen
+PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-fatale-flammen-top-trainer-box/p/254125"  # <-- anpassen
 
 # Ein Text, der auf der Seite auftaucht, WENN das Produkt
 # ausverkauft ist. Sobald dieser Text NICHT mehr gefunden wird,
 # gehen wir davon aus, dass es wieder verfügbar ist.
 # -> Musst du im HTML der Produktseite nachschauen (siehe unten "So findest du den richtigen Text")
-SOLD_OUT_TEXT = "Ausverkauft"
+SOLD_OUT_TEXT = "OutOfStock"
 
 # Datei, in der der letzte bekannte Status gespeichert wird,
 # damit wir zwischen den Läufen wissen, ob sich etwas geändert hat.
