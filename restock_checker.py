@@ -38,13 +38,13 @@ from bs4 import BeautifulSoup
 # KONFIGURATION – hier musst du deine eigenen Werte eintragen
 # ============================================================
 
-PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-fatale-flammen-top-trainer-box/p/254125"  # <-- anpassen
+PRODUCT_URL = "https://www.smith-toys.ch/dein-produkt-link"  # <-- anpassen
 
 # Ein Text, der auf der Seite auftaucht, WENN das Produkt
 # ausverkauft ist. Sobald dieser Text NICHT mehr gefunden wird,
 # gehen wir davon aus, dass es wieder verfügbar ist.
 # -> Musst du im HTML der Produktseite nachschauen (siehe unten "So findest du den richtigen Text")
-SOLD_OUT_TEXT = "OutOfStock"
+SOLD_OUT_TEXT = "Ausverkauft"
 
 # Datei, in der der letzte bekannte Status gespeichert wird,
 # damit wir zwischen den Läufen wissen, ob sich etwas geändert hat.
@@ -78,12 +78,18 @@ def is_in_stock() -> bool:
     response = requests.get(PRODUCT_URL, headers=HEADERS, timeout=15)
     response.raise_for_status()
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    page_text = soup.get_text()
+    # --- DEBUG: zeigt im Actions-Log, was wir tatsächlich empfangen haben ---
+    print(f"DEBUG: HTTP-Status: {response.status_code}")
+    print(f"DEBUG: Antwortlänge: {len(response.text)} Zeichen")
+    print(f"DEBUG: Enthält 'OutOfStock': {'OutOfStock' in response.text}")
+    print(f"DEBUG: Enthält 'InStock': {'InStock' in response.text}")
+    print(f"DEBUG: Erste 500 Zeichen der Antwort:\n{response.text[:500]}")
+    # --- ENDE DEBUG ---
 
-    # Wenn der "Ausverkauft"-Text NICHT mehr im Seitentext vorkommt,
-    # gehen wir davon aus, dass das Produkt verfügbar ist.
-    return SOLD_OUT_TEXT not in page_text
+    # Wir prüfen direkt im rohen HTML (nicht erst nach get_text()),
+    # da schema.org-Werte wie "OutOfStock" in Attributen/JSON-Daten
+    # stecken, die BeautifulSoup's get_text() unter Umständen entfernt.
+    return SOLD_OUT_TEXT not in response.text
 
 
 def load_previous_state() -> bool:
