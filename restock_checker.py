@@ -44,7 +44,7 @@ PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/po
 # ausverkauft ist. Sobald dieser Text NICHT mehr gefunden wird,
 # gehen wir davon aus, dass es wieder verfügbar ist.
 # -> Musst du im HTML der Produktseite nachschauen (siehe unten "So findest du den richtigen Text")
-SOLD_OUT_TEXT = "Nicht vorrätig"
+SOLD_OUT_TEXT = "OutOfStock"
 
 # Datei, in der der letzte bekannte Status gespeichert wird,
 # damit wir zwischen den Läufen wissen, ob sich etwas geändert hat.
