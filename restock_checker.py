@@ -8,7 +8,7 @@ import requests
 from email.mime.text import MIMEText
 
 PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-boosterbundle-mega-entwicklung-erhabene-helden-sortiert/p/260843"
-SOLD_OUT_TEXT = "OutOfStock"
+SOLD_OUT_TEXT = "Nicht vorrätig"
 STATE_FILE = "state.json"
 MAX_RETRIES = 3
 RETRY_DELAY = 30
