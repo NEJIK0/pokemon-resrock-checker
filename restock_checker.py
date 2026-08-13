@@ -1,437 +1,191 @@
+"""
+Restock-Checker für Smith Toys (oder jede andere Shop-Seite)
+==============================================================
+
+Was das Skript macht:
+1. Ruft EINMAL die Produktseite auf — mit einem echten, headless
+   laufenden Chromium-Browser (Playwright), nicht mit einer reinen
+   HTTP-Anfrage. Das lässt JavaScript normal ausführen, so wie es
+   ein Mensch mit einem Browser auch tun würde.
+2. Prüft, ob das Produkt verfügbar ist.
+3. Vergleicht mit dem letzten bekannten Status (gespeichert in state.json).
+4. Schickt NUR dann eine E-Mail, wenn sich der Status von
+   "ausverkauft" zu "verfügbar" ändert (nicht bei jedem Lauf).
+5. Aktualisiert state.json mit dem neuen Status.
+
+WICHTIGER HINWEIS:
+Manche Websites setzen Bot-Schutz-Systeme (z.B. Incapsula/Imperva)
+ein, die aktiv versuchen, automatisierte Zugriffe zu erkennen und
+zu blockieren - auch von echten Browsern wie diesem. Dieses Skript
+versucht NICHT, solche Schutzmassnahmen gezielt zu umgehen (kein
+Fingerprint-Spoofing, kein Lösen von Challenges). Falls die Seite
+weiterhin eine Blockseite statt der echten Produktseite ausliefert,
+ist an dieser Stelle technisch wie auch inhaltlich Schluss - dann
+bitte eine der Alternativen aus dem Chat nutzen (Kontakt zum Shop,
+manuelle Prüfung, offizielle API/Feed, falls vorhanden).
+
+Gedacht für den Betrieb per GitHub Actions.
+
+Bevor du loslegst, musst du anpassen (siehe "KONFIGURATION" unten):
+  - PRODUCT_URL   -> Link zur Produktseite bei Smith Toys
+  - SOLD_OUT_TEXT -> welcher Text/Wert "ausverkauft" bedeutet
+
+Die E-Mail-Zugangsdaten kommen NICHT hierher, sondern werden als
+GitHub Secrets gesetzt und über Umgebungsvariablen eingelesen.
+
+Installation (lokal zum Testen):
+    pip install playwright beautifulsoup4
+    playwright install --with-deps chromium
+"""
+
 import sys
 import os
 import json
 import time
 import smtplib
 import ssl
-import requests
-
 from email.mime.text import MIMEText
-
+from playwright.sync_api import sync_playwright
 
 # ============================================================
-# KONFIGURATION
+# KONFIGURATION – hier musst du deine eigenen Werte eintragen
 # ============================================================
 
-PRODUCT_URL = (
-    "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/"
-    "pokemon/pokemon-karten/"
-    "pokemon-karten-boosterbundle-mega-entwicklung-erhabene-helden-sortiert/"
-    "p/260843"
-)
+PRODUCT_URL = "https://www.smith-toys.ch/dein-produkt-link"  # <-- anpassen
 
-# Diese Begriffe bedeuten: Produkt ist nicht verfügbar.
-OUT_OF_STOCK_MARKERS = [
-    "OutOfStock",
-    "Nicht vorrätig",
-]
+# Text/Wert, der auf der Seite auftaucht, WENN das Produkt
+# ausverkauft ist. Sobald er NICHT mehr gefunden wird, gehen wir
+# davon aus, dass es wieder verfügbar ist.
+SOLD_OUT_TEXT = "OutOfStock"
 
+# Datei, in der der letzte bekannte Status gespeichert wird,
+# damit wir zwischen den Läufen wissen, ob sich etwas geändert hat.
 STATE_FILE = "state.json"
 
-# Maximale Anzahl Versuche pro GitHub-Actions-Lauf
-MAX_RETRIES = 3
-
-# Wartezeit zwischen den Versuchen
-RETRY_DELAY = 30
-
-
-# ============================================================
-# E-MAIL
-# ============================================================
-
+# E-Mail-Zugangsdaten werden aus Umgebungsvariablen gelesen
+# (= GitHub Secrets). NIEMALS Passwörter direkt im Code eintragen!
 SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
-
 EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-
-# ============================================================
-# HTTP
-# ============================================================
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,"
-        "application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-    ),
-    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-}
+# Wie lange (in Millisekunden) auf das vollständige Laden der Seite
+# gewartet wird, bevor wir den Inhalt auslesen.
+PAGE_LOAD_TIMEOUT_MS = 20000
+WAIT_AFTER_LOAD_MS = 3000  # zusätzliche Wartezeit für nachladendes JS
 
 
 # ============================================================
-# PRODUKTSEITE ABRUFEN
+# FUNKTIONEN
 # ============================================================
 
-def get_product_page():
-    """
-    Ruft die Produktseite normal ab.
-
-    Rückgabe:
-        response -> HTTP 200 und HTML erhalten
-        None     -> Seite konnte nicht zuverlässig geprüft werden
-
-    403/429/503 werden nicht als "ausverkauft" interpretiert.
-    """
-
-    session = requests.Session()
-    session.headers.update(HEADERS)
-
-    for attempt in range(1, MAX_RETRIES + 1):
-
-        try:
-            print(
-                f"🔎 Produktseite wird abgerufen "
-                f"(Versuch {attempt}/{MAX_RETRIES})"
+def fetch_rendered_html() -> str:
+    """Öffnet die Seite in einem echten (headless) Chromium-Browser
+    und gibt das HTML zurück, NACHDEM JavaScript ausgeführt wurde."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
             )
-
-            response = session.get(
-                PRODUCT_URL,
-                timeout=20,
-                allow_redirects=True,
-            )
-
-            print(f"HTTP-Status: {response.status_code}")
-            print(f"Antwortlänge: {len(response.text)} Zeichen")
-            print(f"Finale URL: {response.url}")
-
-            # Erfolgreicher Abruf
-            if response.status_code == 200:
-                return response
-
-            # Typische WAF-/Rate-Limit-Antworten
-            if response.status_code in (403, 429, 503):
-
-                print(
-                    f"⚠️ Zugriff momentan nicht möglich "
-                    f"(HTTP {response.status_code})."
-                )
-
-                if attempt < MAX_RETRIES:
-                    print(
-                        f"⏳ Warte {RETRY_DELAY} Sekunden "
-                        f"vor dem nächsten Versuch..."
-                    )
-                    time.sleep(RETRY_DELAY)
-
-                continue
-
-            print(
-                f"⚠️ Unerwarteter HTTP-Status: "
-                f"{response.status_code}"
-            )
-
-            return None
-
-        except requests.RequestException as e:
-
-            print(f"⚠️ Netzwerkfehler: {e}")
-
-            if attempt < MAX_RETRIES:
-                print(
-                    f"⏳ Warte {RETRY_DELAY} Sekunden "
-                    f"vor dem nächsten Versuch..."
-                )
-                time.sleep(RETRY_DELAY)
-
-    print(
-        "❌ Produktseite konnte nicht zuverlässig geprüft werden."
-    )
-
-    return None
-
-
-# ============================================================
-# LAGERSTATUS
-# ============================================================
-
-def is_in_stock():
-    """
-    Rückgabe:
-
-        True  = verfügbar
-        False = ausverkauft
-        None  = Seite konnte nicht zuverlässig geprüft werden
-
-    Wichtig:
-    Bei einem Fehler wird NICHT "verfügbar" angenommen.
-    """
-
-    response = get_product_page()
-
-    if response is None:
-        return None
-
-    html = response.text
-
-    # Debug-Ausgabe
-    for marker in OUT_OF_STOCK_MARKERS:
-
-        print(
-            f"Enthält '{marker}': "
-            f"{marker in html}"
         )
-
-    # Einer der bekannten Ausverkauft-Marker gefunden
-    for marker in OUT_OF_STOCK_MARKERS:
-
-        if marker in html:
-
-            print(
-                f"❌ Nicht verfügbar erkannt "
-                f"(Marker: {marker})"
-            )
-
-            return False
-
-    # Nur bei erfolgreichem HTTP-200-Abruf und
-    # ohne Ausverkauft-Marker wird verfügbar angenommen.
-    print(
-        "✅ Kein Ausverkauft-Marker gefunden – verfügbar."
-    )
-
-    return True
+        page.goto(PRODUCT_URL, timeout=PAGE_LOAD_TIMEOUT_MS, wait_until="networkidle")
+        page.wait_for_timeout(WAIT_AFTER_LOAD_MS)
+        html = page.content()
+        browser.close()
+    return html
 
 
-# ============================================================
-# STATUS LADEN
-# ============================================================
+def is_in_stock() -> bool:
+    """Lädt die Produktseite (gerendert) und prüft, ob sie als
+    verfügbar gilt."""
+    html = fetch_rendered_html()
 
-def load_previous_state():
+    # --- DEBUG: zeigt im Actions-Log, was wir tatsächlich empfangen haben ---
+    print(f"DEBUG: Antwortlänge: {len(html)} Zeichen")
+    print(f"DEBUG: Enthält '{SOLD_OUT_TEXT}': {SOLD_OUT_TEXT in html}")
+    print(f"DEBUG: Enthält 'Incapsula': {'Incapsula' in html}")
+    print(f"DEBUG: Erste 500 Zeichen:\n{html[:500]}")
+    # --- ENDE DEBUG ---
 
+    if "Incapsula" in html or len(html) < 3000:
+        print("WARNUNG: Die Antwort sieht nach einer Bot-Schutz-Seite aus, "
+              "nicht nach der echten Produktseite. Status kann nicht "
+              "zuverlässig ermittelt werden - Ergebnis wird verworfen.")
+        raise RuntimeError("Vermutlich durch Bot-Schutz blockiert")
+
+    return SOLD_OUT_TEXT not in html
+
+
+def load_previous_state() -> bool:
+    """Liest den zuletzt gespeicherten Status. Falls die Datei nicht
+    existiert (erster Lauf), gehen wir von 'ausverkauft' aus."""
     if not os.path.exists(STATE_FILE):
-
-        print(
-            "ℹ️ Keine state.json vorhanden – "
-            "erster Lauf wird als ausverkauft behandelt."
-        )
-
         return False
-
-    try:
-
-        with open(
-            STATE_FILE,
-            "r",
-            encoding="utf-8"
-        ) as f:
-
-            data = json.load(f)
-
-        previous = bool(
-            data.get("in_stock", True)
-        )
-
-        print(
-            "Vorheriger Status: "
-            f"{'verfügbar' if previous else 'ausverkauft'}"
-        )
-
-        return previous
-
-    except (
-        json.JSONDecodeError,
-        OSError
-    ) as e:
-
-        print(
-            f"⚠️ state.json konnte nicht gelesen werden: {e}"
-        )
-
-        return False
+    with open(STATE_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data.get("in_stock", False)
 
 
-# ============================================================
-# STATUS SPEICHERN
-# ============================================================
+def save_state(in_stock: bool):
+    """Speichert den aktuellen Status in state.json."""
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump({"in_stock": in_stock, "last_check": time.strftime("%Y-%m-%d %H:%M:%S")}, f)
 
-def save_state(in_stock):
-
-    with open(
-        STATE_FILE,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            {
-                "in_stock": in_stock,
-                "last_check": time.strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
-            },
-            f,
-            indent=2,
-        )
-
-    print(
-        "Status gespeichert: "
-        f"{'verfügbar' if in_stock else 'ausverkauft'}"
-    )
-
-
-# ============================================================
-# E-MAIL SENDEN
-# ============================================================
 
 def send_email_notification():
-
-    if not all(
-        [
-            EMAIL_SENDER,
-            EMAIL_PASSWORD,
-            EMAIL_RECEIVER,
-        ]
-    ):
-
-        print(
-            "⚠️ E-Mail-Zugangsdaten fehlen "
-            "(GitHub Secrets nicht gesetzt)."
-        )
-
+    """Verschickt eine E-Mail über SMTP."""
+    if not all([EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECEIVER]):
+        print("E-Mail-Zugangsdaten fehlen (Secrets nicht gesetzt) — überspringe Mailversand.")
         return
 
-    subject = (
-        "🔔 Pokémon Karten wieder verfügbar!"
-    )
-
+    subject = "🔔 Pokemon-Karten sind wieder verfügbar!"
     body = (
-        "Das Produkt ist wieder auf Lager!\n\n"
-        f"{PRODUCT_URL}\n\n"
-        "Schnell prüfen, bevor es wieder "
-        "ausverkauft ist!"
+        f"Das Produkt ist wieder auf Lager:\n\n{PRODUCT_URL}\n\n"
+        "Schnell zuschlagen, bevor es wieder ausverkauft ist!"
     )
 
-    msg = MIMEText(
-        body,
-        "plain",
-        "utf-8",
-    )
-
+    msg = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = subject
     msg["From"] = EMAIL_SENDER
     msg["To"] = EMAIL_RECEIVER
 
     context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
 
-    with smtplib.SMTP_SSL(
-        SMTP_SERVER,
-        SMTP_PORT,
-        context=context,
-    ) as server:
+    print("E-Mail-Benachrichtigung wurde verschickt.")
 
-        server.login(
-            EMAIL_SENDER,
-            EMAIL_PASSWORD,
-        )
-
-        server.sendmail(
-            EMAIL_SENDER,
-            EMAIL_RECEIVER,
-            msg.as_string(),
-        )
-
-    print(
-        "📧 E-Mail-Benachrichtigung wurde verschickt."
-    )
-
-
-# ============================================================
-# MAIN
-# ============================================================
 
 def main():
-
-    timestamp = time.strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
-
-    print("=" * 60)
-    print(
-        f"Restock Checker – {timestamp}"
-    )
-    print("=" * 60)
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-
         in_stock = is_in_stock()
-
-        # ----------------------------------------------------
-        # SEITE NICHT ZUVERLÄSSIG ERREICHBAR
-        # ----------------------------------------------------
-
-        if in_stock is None:
-
-            print(
-                "⚠️ Lagerstatus konnte nicht zuverlässig "
-                "bestimmt werden."
-            )
-
-            print(
-                "ℹ️ Keine E-Mail wird verschickt."
-            )
-
-            print(
-                "ℹ️ Der bisherige Status bleibt unverändert."
-            )
-
-            return
-
-        # ----------------------------------------------------
-        # VORHERIGEN STATUS LADEN
-        # ----------------------------------------------------
-
         was_in_stock = load_previous_state()
 
-        # ----------------------------------------------------
-        # RESTOCK ERKANNT
-        # ----------------------------------------------------
-
         if in_stock and not was_in_stock:
-
-            print(
-                "🎉 RESTOCK ERKANNT!"
-            )
-
+            print(f"[{timestamp}] ✅ Neu verfügbar! Sende E-Mail...")
             send_email_notification()
-
-        # ----------------------------------------------------
-        # WEITERHIN VERFÜGBAR
-        # ----------------------------------------------------
-
         elif in_stock:
-
-            print(
-                "✅ Weiterhin verfügbar "
-                "(bereits gemeldet)."
-            )
-
-        # ----------------------------------------------------
-        # AUSVERKAUFT
-        # ----------------------------------------------------
-
+            print(f"[{timestamp}] ✅ Weiterhin verfügbar (bereits gemeldet).")
         else:
+            print(f"[{timestamp}] ❌ Ausverkauft.")
 
-            print(
-                "❌ Ausverkauft."
-            )
-
-        # Nur bei einem erfolgreichen Abruf
-        # den Status aktualisieren.
         save_state(in_stock)
 
+    except RuntimeError as e:
+        # Vermutlich durch Bot-Schutz blockiert -> Status NICHT speichern,
+        # damit ein blockierter Lauf keine falsche "Änderung" auslöst.
+        print(f"[{timestamp}] {e}")
+        sys.exit(1)
+
     except Exception as e:
-
-        print(
-            f"❌ Unerwarteter Fehler: {e}"
-        )
-
+        print(f"[{timestamp}] Fehler beim Abrufen der Seite: {e}")
         sys.exit(1)
 
 
