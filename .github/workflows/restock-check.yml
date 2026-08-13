@@ -2,7 +2,7 @@ name: Pokemon Restock Check
 
 on:
   schedule:
-    - cron: "* 6,14 * * * *"
+    - cron: "* 6,14 * * *"
   workflow_dispatch:
 
 permissions:
