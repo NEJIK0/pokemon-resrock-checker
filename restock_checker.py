@@ -51,8 +51,8 @@ PRODUCTS = [
      {
         "name": "Pokémon Karten Top-Trainer-Box Mega-Entwicklung Dunkelnacht",
         "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-top-trainer-box-mega-entwicklung-dunkelnacht/p/263149"
-    },        
-        # Hier kannst du beliebig viele weitere Produkte hinzufügen:
+    },
+    # Hier kannst du beliebig viele weitere Produkte hinzufügen:
     # {
     #     "name": "Weiteres Produkt Name",
     #     "url": "https://www.smythstoys.com/.../p/123456"
@@ -125,7 +125,7 @@ def save_state(state_data: dict):
 def send_email_notification(product_name: str, product_url: str):
     """Verschickt eine E-Mail für ein bestimmtes Produkt."""
     if not all([EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECEIVER]):
-        print("E-Mail-Zugangsdaten fehlen — überspringe Mailversand.")
+        print("E-Mail-Zugangsdaten fehlen — überspringe Mailversand.", flush=True)
         return
 
     subject = f"🔔 Restock: {product_name} ist wieder verfügbar!"
@@ -141,33 +141,33 @@ def send_email_notification(product_name: str, product_url: str):
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
         server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
 
-    print(f"E-Mail-Benachrichtigung für '{product_name}' wurde verschickt.")
+    print(f"E-Mail-Benachrichtigung für '{product_name}' wurde verschickt.", flush=True)
 
 
 def main():
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     state_data = load_previous_state()
     
-    print(f"[{timestamp}] Starte Prüfung für {len(PRODUCTS)} Produkte...\n")
+    # flush=True sorgt dafür, dass die Nachricht SOFORT in GitHub Actions sichtbar ist
+    print(f"[{timestamp}] Starte Prüfung für {len(PRODUCTS)} Produkte...\n", flush=True)
 
     for product in PRODUCTS:
         name = product["name"]
         url = product["url"]
 
-        print(f"--- Prüfe: {name} ---")
+        print(f"--- Prüfe: {name} ---", flush=True)
 
         try:
             in_stock = is_in_stock(url)
-            # Vorherigen Status abrufen (Standard: False)
             was_in_stock = state_data.get(url, {}).get("in_stock", False)
 
             if in_stock and not was_in_stock:
-                print(f"✅ Neu verfügbar! Sende E-Mail...")
+                print(f"✅ Neu verfügbar! Sende E-Mail...", flush=True)
                 send_email_notification(name, url)
             elif in_stock:
-                print(f"✅ Weiterhin verfügbar.")
+                print(f"✅ Weiterhin verfügbar.", flush=True)
             else:
-                print(f"❌ Ausverkauft.")
+                print(f"❌ Ausverkauft.", flush=True)
 
             # Status im Dict aktualisieren
             state_data[url] = {
@@ -177,10 +177,14 @@ def main():
             }
 
         except Exception as e:
-            print(f"Fehler beim Abrufen von '{name}': {e}")
+            print(f"Fehler beim Abrufen von '{name}': {e}", flush=True)
 
-        # Kurze Pause zwischen Anfragen, um Scrapfly-Limits zu schonen
+        # Pause zwischen Abfragen
         time.sleep(2)
 
-    # Nach dem Durchlauf aller Produkte den Gesamt-Status speichern
+    # Nach allen Produkten den Status speichern
     save_state(state_data)
+
+
+if __name__ == "__main__":
+    main()
