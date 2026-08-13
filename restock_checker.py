@@ -51,7 +51,7 @@ from playwright.sync_api import sync_playwright
 # KONFIGURATION – hier musst du deine eigenen Werte eintragen
 # ============================================================
 
-PRODUCT_URL = "https://www.smith-toys.ch/dein-produkt-link"  # <-- anpassen
+PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-boosterbundle-mega-entwicklung-erhabene-helden-sortiert/p/260843"  # <-- anpassen
 
 # Text/Wert, der auf der Seite auftaucht, WENN das Produkt
 # ausverkauft ist. Sobald er NICHT mehr gefunden wird, gehen wir
