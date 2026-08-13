@@ -51,8 +51,7 @@ PRODUCTS = [
      {
         "name": "Pokémon Karten Top-Trainer-Box Mega-Entwicklung Dunkelnacht",
         "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-top-trainer-box-mega-entwicklung-dunkelnacht/p/263149"
-    },
-        
+    },        
         # Hier kannst du beliebig viele weitere Produkte hinzufügen:
     # {
     #     "name": "Weiteres Produkt Name",
