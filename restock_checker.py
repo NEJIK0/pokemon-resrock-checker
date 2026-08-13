@@ -225,7 +225,7 @@ def load_previous_state():
             data = json.load(f)
 
         previous = bool(
-            data.get("in_stock", False)
+            data.get("in_stock", True)
         )
 
         print(
