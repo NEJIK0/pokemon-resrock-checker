@@ -1,0 +1,56 @@
+name: Pokemon Restock Check
+
+# Wann der Workflow laufen soll:
+on:
+  schedule:
+    # Alle 10 Minuten. Cron-Syntax: Minute Stunde Tag Monat Wochentag
+    # GitHub Actions läuft in UTC-Zeit, nicht in Schweizer Zeit!
+    - cron: "*/10 * * * *"
+  # Ermöglicht zusätzlich manuelles Starten über den "Run workflow"-Button auf GitHub
+  workflow_dispatch:
+
+# Erlaubt dem Workflow, Änderungen (state.json) zurück ins Repo zu schreiben
+permissions:
+  contents: write
+
+jobs:
+  check-stock:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Repository-Inhalt (inkl. restock_checker.py) auschecken
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      # 2. Python installieren
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 3. Abhängigkeiten installieren (Playwright + echter Chromium-Browser)
+      - name: Abhängigkeiten installieren
+        run: |
+          pip install playwright beautifulsoup4
+          playwright install --with-deps chromium
+
+      # 4. Das eigentliche Skript ausführen
+      #    Zugangsdaten kommen aus GitHub Secrets, nicht aus dem Code!
+      - name: Verfügbarkeit prüfen
+        env:
+          SMTP_SERVER: smtp.gmail.com
+          SMTP_PORT: 465
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        run: python restock_checker.py
+
+      # 5. state.json zurück ins Repo committen, falls sie sich geändert hat
+      #    (nötig, damit der nächste Lauf weiss, was der letzte Status war)
+      - name: Status speichern
+        run: |
+          git config user.name "restock-bot"
+          git config user.email "actions@github.com"
+          git add state.json
+          git diff --quiet --cached || git commit -m "Status aktualisieren"
+          git push || true
