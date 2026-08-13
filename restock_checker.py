@@ -17,16 +17,6 @@ PRODUCTS = [
         "name": "Pokemon Booster Bundle Erhabene Helden",
         "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-boosterbundle-mega-entwicklung-erhabene-helden-sortiert/p/260843"
     },
-    
-    {
-        "name": "Pokémon Tin-Box Mega-Mondschein mit Mega-Pixi-ex",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-tin-box-mega-mondschein-mit-mega-pixi-ex/p/261685"
-    },
-
-    {
-        "name": "Pokémon Karten Premium-Kollektion Mega-Zygarde-ex mit 8 Booster Packs",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-premium-kollektion-mega-zygarde-ex-mit-8-booster-packs/p/260819"
-    },
 
     {
         "name": "Pokémon Karten Mega-Entwicklung Optimale Ordnung Top-Trainer-Box",
@@ -34,21 +24,11 @@ PRODUCTS = [
     },
 
     {
-        "name": "Pokémon Karten Mega-Entwicklung - Optimale Ordnung Booster Packs 6er Set sortiert",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-optimale-ordnung-booster-packs-6er-set-sortiert/p/257701"
-    },
-
-     {
         "name": "Pokémon Karten Mega-Entwicklung Wachsendes Chaos Top-Trainer-Box",
         "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-wachsendes-chaos-top-trainer-box/p/260030"
     },
 
-     {
-        "name": "Pokémon Karten Mega-Entwicklung Dunkelnacht Boosterbundle sortiert",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-dunkelnacht-boosterbundle-sortiert/p/263166"
-    },
-
-     {
+    {
         "name": "Pokémon Karten Top-Trainer-Box Mega-Entwicklung Dunkelnacht",
         "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-top-trainer-box-mega-entwicklung-dunkelnacht/p/263149"
     },
