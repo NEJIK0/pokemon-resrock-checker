@@ -11,7 +11,7 @@ from scrapfly import ScrapflyClient, ScrapeConfig
 # KONFIGURATION
 # ============================================================
 
-PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/..."  # <-- Dein Produkt-Link
+PRODUCT_URL = "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-boosterbundle-mega-entwicklung-erhabene-helden-sortiert/p/260843"  # <-- Dein Produkt-Link
 
 # Text, der "ausverkauft" bedeutet
 SOLD_OUT_TEXT = "OutOfStock"
