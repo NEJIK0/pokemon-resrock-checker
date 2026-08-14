@@ -13,25 +13,12 @@ from scrapfly import ScrapflyClient, ScrapeConfig
 
 # Liste der zu überwachenden Produkte (Name & URL)
 PRODUCTS = [
-    {
-        "name": "Pokemon Booster Bundle Erhabene Helden",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-boosterbundle-mega-entwicklung-erhabene-helden-sortiert/p/260843"
-    },
-
-    {
-        "name": "Pokémon Karten Mega-Entwicklung Optimale Ordnung Top-Trainer-Box",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-optimale-ordnung-top-trainer-box/p/257700"
-    },
 
     {
         "name": "Pokémon Karten Mega-Entwicklung Wachsendes Chaos Top-Trainer-Box",
         "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-wachsendes-chaos-top-trainer-box/p/260030"
     },
 
-    {
-        "name": "Pokémon Karten Top-Trainer-Box Mega-Entwicklung Dunkelnacht",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-top-trainer-box-mega-entwicklung-dunkelnacht/p/263149"
-    },
     # Hier kannst du beliebig viele weitere Produkte hinzufügen:
     # {
     #     "name": "Weiteres Produkt Name",
