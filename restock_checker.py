@@ -15,8 +15,8 @@ from scrapfly import ScrapflyClient, ScrapeConfig
 PRODUCTS = [
 
     {
-        "name": "Pokémon Karten Mega-Entwicklung Wachsendes Chaos Top-Trainer-Box",
-        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-mega-entwicklung-wachsendes-chaos-top-trainer-box/p/260030"
+        "name": "Pokémon Karten Top-Trainer-Box 30 Jahre Edition",
+        "url": "https://www.smythstoys.com/ch/de-ch/spielzeug/action-spielzeug/pokemon/pokemon-karten/pokemon-karten-top-trainer-box-30-jahre-edition/p/264148"
     },
 
     # Hier kannst du beliebig viele weitere Produkte hinzufügen:
